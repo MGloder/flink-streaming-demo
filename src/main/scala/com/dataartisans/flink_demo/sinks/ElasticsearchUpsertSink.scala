@@ -16,29 +16,29 @@
 
 package com.dataartisans.flink_demo.sinks
 
-import java.util
+import java.net.InetAddress
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.transport.TransportClient
-import org.elasticsearch.common.settings.ImmutableSettings
-import org.elasticsearch.common.transport.InetSocketTransportAddress
+import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.common.transport.TransportAddress
+import org.elasticsearch.transport.client.PreBuiltTransportClient
 
 import scala.collection.JavaConversions._
 
 /**
- * SinkFunction to either insert or update an entry in an Elasticsearch index.
- *
- * @param host Hostname of the Elasticsearch instance.
- * @param port Port of the Elasticsearch instance.
- * @param cluster Name of the Elasticsearch cluster.
- * @param index Name of the Elasticsearch index.
- * @param mapping Name of the index mapping.
- *
- * @tparam T Record type to write to Elasticsearch.
- */
+  * SinkFunction to either insert or update an entry in an Elasticsearch index.
+  *
+  * @param host    Hostname of the Elasticsearch instance.
+  * @param port    Port of the Elasticsearch instance.
+  * @param cluster Name of the Elasticsearch cluster.
+  * @param index   Name of the Elasticsearch index.
+  * @param mapping Name of the index mapping.
+  * @tparam T Record type to write to Elasticsearch.
+  */
 abstract class ElasticsearchUpsertSink[T](host: String, port: Int, cluster: String, index: String, mapping: String)
   extends RichSinkFunction[T] {
 
@@ -53,15 +53,22 @@ abstract class ElasticsearchUpsertSink[T](host: String, port: Int, cluster: Stri
   @throws[Exception]
   override def open(parameters: Configuration) {
 
-    val config = new util.HashMap[String, String]
-    config.put("bulk.flush.max.actions", "1")
-    config.put("cluster.name", cluster)
+    //    val config = new util.HashMap[String, String]
+    //    config.put("bulk.flush.max.actions", "1")
+    //    config.put("cluster.name", cluster)
 
-    val settings = ImmutableSettings.settingsBuilder()
-      .put(config)
+    //    val settings = ImmutableSettings.settingsBuilder()
+    //      .put(config)
+    //      .build()
+    //
+    val settings = Settings
+      .builder()
+      .put("bulk.flush.max.actions", "1")
+      .put("cluster.name", cluster)
       .build()
-    client = new TransportClient(settings)
-      .addTransportAddress(new InetSocketTransportAddress(host, port))
+
+    client = new PreBuiltTransportClient(settings)
+      .addTransportAddress(new TransportAddress(InetAddress.getByName(host), port))
   }
 
   @throws[Exception]
@@ -79,5 +86,4 @@ abstract class ElasticsearchUpsertSink[T](host: String, port: Int, cluster: Stri
 
     client.update(updateRequest).get()
   }
-
 }
