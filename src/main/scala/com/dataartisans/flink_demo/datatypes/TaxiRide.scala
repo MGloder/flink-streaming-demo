@@ -33,7 +33,7 @@ import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
  * @param passengerCnt The number of passengers on the taxi ride
  * @param travelDist The total traveled distance for end events, -1 for start events.
  */
-class TaxiRide(
+case class TaxiRide(
                var rideId: Long,
                var time: DateTime,
                var isStart: Boolean,

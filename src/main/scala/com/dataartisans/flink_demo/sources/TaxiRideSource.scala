@@ -17,41 +17,39 @@
 package com.dataartisans.flink_demo.sources
 
 import java.io._
-import java.util.{Calendar, Random}
 import java.util.zip.GZIPInputStream
+import java.util.{Calendar, Random}
 
 import com.dataartisans.flink_demo.datatypes.TaxiRide
-import org.apache.flink.streaming.api.functions.source.{EventTimeSourceFunction}
+import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.joda.time.DateTime
 
 import scala.collection.mutable
 
 /**
- * This SourceFunction generates a data stream of TaxiRide records which are
- * read from a gzipped input file. Each record has a time stamp and the input file must be
- * ordered by this time stamp.
- *
- * In order to simulate a realistic stream source, the SourceFunction serves events proportional to
- * their timestamps. In addition, the serving of events can be delayed by a bounded random delay
- * which causes the events to be served out-of-order of their timestamps.
- *
- * The serving speed of the SourceFunction can be adjusted by a serving speed factor.
- * A factor of 60.0 increases the logical serving time by a factor of 60, i.e., events of one
- * minute (60 seconds) are served in 1 second.
- *
- * This SourceFunction is an EventSourceFunction and does continuously emit watermarks.
- * Hence it can only operate in event time mode which is configured as follows:
- *
- *   StreamExecutionEnvironment.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
- *
- * @param dataFilePath The path to the gzipped input file.
- * @param maxDelaySecs The maximum serving delay. Defines how much elements are served out-of-order.
- * @param servingSpeed The relative serving speed. Can be used to fast-forward the stream.
- */
-class TaxiRideSource(dataFilePath: String, maxDelaySecs: Int, servingSpeed: Float)
-  extends EventTimeSourceFunction[TaxiRide] {
+  * This SourceFunction generates a data stream of TaxiRide records which are
+  * read from a gzipped input file. Each record has a time stamp and the input file must be
+  * ordered by this time stamp.
+  *
+  * In order to simulate a realistic stream source, the SourceFunction serves events proportional to
+  * their timestamps. In addition, the serving of events can be delayed by a bounded random delay
+  * which causes the events to be served out-of-order of their timestamps.
+  *
+  * The serving speed of the SourceFunction can be adjusted by a serving speed factor.
+  * A factor of 60.0 increases the logical serving time by a factor of 60, i.e., events of one
+  * minute (60 seconds) are served in 1 second.
+  *
+  * This SourceFunction is an EventSourceFunction and does continuously emit watermarks.
+  * Hence it can only operate in event time mode which is configured as follows:
+  *
+  *   StreamExecutionEnvironment.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+  *
+  * @param dataFilePath The path to the gzipped input file.
+  * @param maxDelaySecs The maximum serving delay. Defines how much elements are served out-of-order.
+  * @param servingSpeed The relative serving speed. Can be used to fast-forward the stream.
+  */
+class TaxiRideSource(dataFilePath: String, maxDelaySecs: Int, servingSpeed: Float) extends SourceFunction[TaxiRide] {
 
   private val maxDelayMsecs = maxDelaySecs * 1000
   private val watermarkDelayMSecs = if (maxDelayMsecs < 10000) 10000 else maxDelayMsecs
@@ -67,8 +65,7 @@ class TaxiRideSource(dataFilePath: String, maxDelaySecs: Int, servingSpeed: Floa
 
     if (this.maxDelayMsecs == 0) {
       generateOrderedStream(sourceContext)
-    }
-    else {
+    } else {
       generateUnorderedStream(sourceContext)
     }
 
@@ -175,7 +172,7 @@ class TaxiRideSource(dataFilePath: String, maxDelaySecs: Int, servingSpeed: Floa
     val rand: Random = new Random(7452)
 
     val emitSchedule = mutable.PriorityQueue.empty[(Long, Either[TaxiRide, Watermark])](
-      Ordering.by( (_: (Long, Either[TaxiRide, Watermark]))._1 ).reverse
+      Ordering.by((_: (Long, Either[TaxiRide, Watermark]))._1).reverse
     )
 
     var ride: TaxiRide = null
@@ -189,11 +186,11 @@ class TaxiRideSource(dataFilePath: String, maxDelaySecs: Int, servingSpeed: Floa
 
         // schedule first event
         val delayedEventTime: Long = dataStartTime + getNormalDelayMsecs(rand)
-        emitSchedule += ( (delayedEventTime, Left(ride)) )
+        emitSchedule += ((delayedEventTime, Left(ride)))
         // schedule first watermark
         val watermarkTime = dataStartTime + watermarkDelayMSecs
         val nextWatermark = new Watermark(watermarkTime - maxDelayMsecs - 1)
-        emitSchedule += ( (watermarkTime, Right(nextWatermark)) )
+        emitSchedule += ((watermarkTime, Right(nextWatermark)))
       }
     }
     else {
@@ -217,7 +214,7 @@ class TaxiRideSource(dataFilePath: String, maxDelaySecs: Int, servingSpeed: Floa
 
         // insert event into schedule
         val delayedEventTime = rideEventTime + getNormalDelayMsecs(rand)
-        emitSchedule += ( (delayedEventTime, Left(ride)) )
+        emitSchedule += ((delayedEventTime, Left(ride)))
 
         // read next ride from input
         if (reader.ready) {
@@ -256,7 +253,7 @@ class TaxiRideSource(dataFilePath: String, maxDelaySecs: Int, servingSpeed: Floa
           // schedule next watermark
           val watermarkTime = delayedEventTime + watermarkDelayMSecs
           val nextWatermark = new Watermark(watermarkTime - maxDelayMsecs - 1)
-          emitSchedule += ( (watermarkTime, Right(nextWatermark)))
+          emitSchedule += ((watermarkTime, Right(nextWatermark)))
         }
       }
     }
