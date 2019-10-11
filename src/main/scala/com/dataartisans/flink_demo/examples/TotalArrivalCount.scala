@@ -43,7 +43,7 @@ import org.apache.flink.api.scala._
 object TotalArrivalCount {
 
   def func: ((Int, Long, Int), (Int, Long, Short)) => (Int, Long, Int)
-    = (s: (Int, Long, Int), r: (Int, Long, Short)) => (s._1, s._2.max(r._2), s._3 + r._3)
+    = (s: (Int, Long, Int), r: (Int, Long, Short)) => (r._1, s._2.max(r._2), s._3 + r._3)
 
   def main(args: Array[String]) {
 
@@ -85,8 +85,8 @@ object TotalArrivalCount {
     val passengerCnts: DataStream[(Int, Long, Int)] = cellIds
       .keyBy(_._1)
       .fold(0, 0L, 0)(func)
-
-    passengerCnts.filter(_._1 != 0).print()
+//
+    passengerCnts.print()
 
 
     // sum passengers per cell Id and update time
