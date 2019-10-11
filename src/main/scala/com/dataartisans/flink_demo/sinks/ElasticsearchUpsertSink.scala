@@ -61,14 +61,20 @@ abstract class ElasticsearchUpsertSink[T](host: String, port: Int, cluster: Stri
     //      .put(config)
     //      .build()
     //
-    val settings = Settings
-      .builder()
-      .put("bulk.flush.max.actions", "1")
-      .put("cluster.name", cluster)
-      .build()
+//    val settings = Settings
+//      .builder()
+//      .put("bulk.flush.max.actions", "1")
+//      .put("cluster.name", cluster)
+//      .build()
 
-    client = new PreBuiltTransportClient(settings)
-      .addTransportAddress(new TransportAddress(InetAddress.getByName(host), port))
+    client = new PreBuiltTransportClient(Settings.EMPTY)
+      .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), 9300))
+
+    println("---------")
+
+
+//    client = new PreBuiltTransportClient(settings)
+//      .addTransportAddress(new TransportAddress(InetAddress.getByName(host), port))
   }
 
   @throws[Exception]

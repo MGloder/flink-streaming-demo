@@ -85,25 +85,23 @@ object TotalArrivalCount {
     val passengerCnts: DataStream[(Int, Long, Int)] = cellIds
       .keyBy(_._1)
       .fold(0, 0L, 0)(func)
-//
-    passengerCnts.print()
-
+    //
 
     // sum passengers per cell Id and update time
 
     // map cell Id back to GeoPoint
-    //    val cntByLocation: DataStream[(Int, Long, GeoPoint, Int)] = passengerCnts
-    //      .map( r => (r._1, r._2, NycGeoUtils.getGridCellCenter(r._1), r._3 ) )
+    val cntByLocation: DataStream[(Int, Long, GeoPoint, Int)] = passengerCnts
+      .map(r => (r._1, r._2, NycGeoUtils.getGridCellCenter(r._1), r._3))
 
     // print to console
-    //    cntByLocation
-    //      .print()
+    cntByLocation
+      .print()
 
     if (writeToElasticsearch) {
-      println("example ... ...")
+//            println("example ... ...")
       // write to Elasticsearch
-      //      cntByLocation
-      //        .addSink(new CntTimeByLocUpsert(elasticsearchHost, elasticsearchPort))
+      cntByLocation
+        .addSink(new CntTimeByLocUpsert(elasticsearchHost, elasticsearchPort))
     }
 
     env.execute("Total passenger count per location")
