@@ -84,8 +84,7 @@ object TotalArrivalCount {
 
     val passengerCnts: DataStream[(Int, Long, Int)] = cellIds
       .keyBy(_._1)
-      //  def fold[R: TypeInformation](initialValue: R)(fun: (R,T) => R): DataStream[R] = {
-      .fold(0, 0L, 9)(func)
+      .fold(0, 0L, 0)(func)
 
     passengerCnts.filter(_._1 != 0).print()
 
