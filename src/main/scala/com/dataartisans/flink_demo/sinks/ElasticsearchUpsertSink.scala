@@ -20,6 +20,7 @@ import java.net.InetAddress
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+import org.apache.logging.log4j.LogManager
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.transport.TransportClient
@@ -28,6 +29,7 @@ import org.elasticsearch.common.transport.TransportAddress
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 
 import scala.collection.JavaConversions._
+import scala.util.Try
 
 /**
   * SinkFunction to either insert or update an entry in an Elasticsearch index.
@@ -50,31 +52,16 @@ abstract class ElasticsearchUpsertSink[T](host: String, port: Int, cluster: Stri
 
   def indexKey(record: T): String
 
+  private val log = LogManager.getLogger(getClass.getName)
+
   @throws[Exception]
   override def open(parameters: Configuration) {
 
-    //    val config = new util.HashMap[String, String]
-    //    config.put("bulk.flush.max.actions", "1")
-    //    config.put("cluster.name", cluster)
+    val setting = Settings.builder().put("cluster.name", cluster).build()
 
-    //    val settings = ImmutableSettings.settingsBuilder()
-    //      .put(config)
-    //      .build()
-    //
-//    val settings = Settings
-//      .builder()
-//      .put("bulk.flush.max.actions", "1")
-//      .put("cluster.name", cluster)
-//      .build()
-
-    client = new PreBuiltTransportClient(Settings.EMPTY)
+    client = new PreBuiltTransportClient(setting)
       .addTransportAddress(new TransportAddress(InetAddress.getByName("127.0.0.1"), 9300))
 
-    println("---------")
-
-
-//    client = new PreBuiltTransportClient(settings)
-//      .addTransportAddress(new TransportAddress(InetAddress.getByName(host), port))
   }
 
   @throws[Exception]
@@ -82,14 +69,20 @@ abstract class ElasticsearchUpsertSink[T](host: String, port: Int, cluster: Stri
     // do an upsert request to elastic search
 
     // index document if it does not exist
-    val indexRequest = new IndexRequest(index, mapping, indexKey(r))
-      .source(mapAsJavaMap(insertJson(r)))
+    Try {
+      val indexRequest = new IndexRequest(index, mapping, indexKey(r))
+        .source(mapAsJavaMap(insertJson(r)))
 
-    // update document if it exists
-    val updateRequest = new UpdateRequest(index, mapping, indexKey(r))
-      .doc(mapAsJavaMap(updateJson(r)))
-      .upsert(indexRequest)
+      // update document if it exists
+      val updateRequest = new UpdateRequest(index, mapping, indexKey(r))
+        .doc(mapAsJavaMap(updateJson(r)))
+        .upsert(indexRequest)
 
-    client.update(updateRequest).get()
+      client.update(updateRequest).get()
+
+    } match {
+      case scala.util.Failure(exception) => log.error(exception.getMessage)
+      case scala.util.Success(value) => log.info(value)
+    }
   }
 }

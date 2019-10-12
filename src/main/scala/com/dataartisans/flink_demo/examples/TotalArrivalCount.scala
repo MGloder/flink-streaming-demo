@@ -20,6 +20,7 @@ import com.dataartisans.flink_demo.datatypes.{GeoPoint, TaxiRide}
 import com.dataartisans.flink_demo.sinks.ElasticsearchUpsertSink
 import com.dataartisans.flink_demo.sources.TaxiRideSource
 import com.dataartisans.flink_demo.utils.NycGeoUtils
+import org.apache.commons.logging.LogFactory
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
@@ -47,6 +48,8 @@ object TotalArrivalCount {
 
   def main(args: Array[String]) {
 
+    System.setProperty("es.set.netty.runtime.available.processors", "false")
+
     // input parameters
     val data = "./data/nycTaxiData.gz"
     val maxServingDelay = 60
@@ -55,7 +58,7 @@ object TotalArrivalCount {
     // Elasticsearch parameters
     val writeToElasticsearch = true // set to true to write results to Elasticsearch
     val elasticsearchHost = "127.0.0.1" // look-up hostname in Elasticsearch log output
-    val elasticsearchPort = 9300
+    val elasticsearchPort = 9200
 
 
     // set up streaming execution environment
@@ -94,8 +97,8 @@ object TotalArrivalCount {
       .map(r => (r._1, r._2, NycGeoUtils.getGridCellCenter(r._1), r._3))
 
     // print to console
-    cntByLocation
-      .print()
+//    cntByLocation
+//      .print()
 
     if (writeToElasticsearch) {
 //            println("example ... ...")
@@ -112,7 +115,7 @@ object TotalArrivalCount {
     extends ElasticsearchUpsertSink[(Int, Long, GeoPoint, Int)](
       host,
       port,
-      "elasticsearch",
+      "elasticsearch_xyan",
       "nyc-idx",
       "popular-locations") {
 
@@ -137,8 +140,4 @@ object TotalArrivalCount {
     }
   }
 
-}
-
-class SumAggFunction extends KeyedProcessFunction[Int, (Int, Long, Short), (Int, Long, Short)] {
-  override def processElement(value: (Int, Long, Short), ctx: KeyedProcessFunction[Int, (Int, Long, Short), (Int, Long, Short)]#Context, out: Collector[(Int, Long, Short)]): Unit = ???
 }
