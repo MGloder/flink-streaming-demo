@@ -20,11 +20,8 @@ import com.dataartisans.flink_demo.datatypes.{GeoPoint, TaxiRide}
 import com.dataartisans.flink_demo.sinks.ElasticsearchUpsertSink
 import com.dataartisans.flink_demo.sources.TaxiRideSource
 import com.dataartisans.flink_demo.utils.NycGeoUtils
-import org.apache.commons.logging.LogFactory
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.util.Collector
 
 /**
   * Apache Flink DataStream API demo application.

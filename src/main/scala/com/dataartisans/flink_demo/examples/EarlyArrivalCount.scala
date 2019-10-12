@@ -19,14 +19,11 @@ package com.dataartisans.flink_demo.examples
 import com.dataartisans.flink_demo.datatypes.{GeoPoint, TaxiRide}
 import com.dataartisans.flink_demo.sinks.ElasticsearchUpsertSink
 import com.dataartisans.flink_demo.sources.TaxiRideSource
-import com.dataartisans.flink_demo.utils.{DemoStreamEnvironment, NycGeoUtils}
-import jdk.nashorn.internal.ir.annotations.Ignore
+import com.dataartisans.flink_demo.utils.NycGeoUtils
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.datastream.DataStreamSource
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.streaming.api.windowing.triggers.Trigger
+import org.apache.flink.streaming.api.windowing.triggers.{Trigger, TriggerResult}
 import org.apache.flink.streaming.api.windowing.triggers.Trigger.TriggerContext
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
@@ -45,6 +42,9 @@ import org.apache.flink.util.Collector
   * for more detail.
   *
   */
+
+import org.apache.flink.api.scala._
+
 
 object EarlyArrivalCount {
 
@@ -67,30 +67,30 @@ object EarlyArrivalCount {
 
 
     // set up streaming execution environment
-    val env: StreamExecutionEnvironment = DemoStreamEnvironment.env
+    //    val env: StreamExecutionEnvironment = DemoStreamEnvironment.env
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     // Define the data source
-    val rides: DataStreamSource[TaxiRide] = env.addSource(new TaxiRideSource(
-      data, maxServingDelay, servingSpeedFactor))
+    val rides: DataStream[TaxiRide] = env.addSource(new TaxiRideSource(data, maxServingDelay, servingSpeedFactor))
 
     val cleansedRides = rides
       // filter for trip end events
       .filter(!_.isStart)
       // filter for events in NYC
       .filter(r => NycGeoUtils.isInNYC(r.location))
-
-    // map location coordinates to cell Id, timestamp, and passenger count
+//
+//    // map location coordinates to cell Id, timestamp, and passenger count
     val cellIds: DataStream[(Int, Short)] = cleansedRides
       .map(r => (NycGeoUtils.mapToGridCell(r.location), r.passengerCnt))
-
+//
     val passengerCnts: DataStream[(Int, Long, Int)] = cellIds
-      // key stream by cell Id
+//      // key stream by cell Id
       .keyBy(_._1)
-      // define sliding window on keyed streams
+//      // define sliding window on keyed streams
       .timeWindow(Time.minutes(countWindowLength), Time.minutes(countWindowFrequency))
       .trigger(new EarlyCountTrigger(earlyCountThreshold))
-      // count events in window
+//       count events in window
       .apply { (
                  cell: Int,
                  window: TimeWindow,
@@ -98,19 +98,20 @@ object EarlyArrivalCount {
                  out: Collector[(Int, Long, Int)]) =>
       out.collect((cell, window.getEnd, events.map(_._2).sum))
     }
-
-    val cntByLocation: DataStream[(Int, Long, GeoPoint, Int)] = passengerCnts
-      // map cell Id back to GeoPoint
-      .map(r => (r._1, r._2, NycGeoUtils.getGridCellCenter(r._1), r._3))
+//
+//    val cntByLocation: DataStream[(Int, Long, GeoPoint, Int)] = passengerCnts
+//      // map cell Id back to GeoPoint
+//      .map(r => (r._1, r._2, NycGeoUtils.getGridCellCenter(r._1), r._3))
 
     // print to console
-    cntByLocation
+    passengerCnts
       .print()
 
     if (writeToElasticsearch) {
       // write to Elasticsearch
-      cntByLocation
-        .addSink(new CntByLocTimeUpsert(elasticsearchHost, elasticsearchPort))
+      println("write to elasticsearch")
+//      cntByLocation
+//        .addSink(new CntByLocTimeUpsert(elasticsearchHost, elasticsearchPort))
     }
 
     env.execute("Early arrival counts per location")
@@ -118,6 +119,8 @@ object EarlyArrivalCount {
   }
 
   class EarlyCountTrigger(triggerCnt: Int) extends Trigger[(Int, Short), TimeWindow] {
+
+    override def clear(window: TimeWindow, ctx: TriggerContext): Unit = ???
 
     override def onElement(
                             event: (Int, Short),
@@ -129,7 +132,7 @@ object EarlyArrivalCount {
       ctx.registerEventTimeTimer(window.getEnd)
 
       // get current count
-      val personCnt = ctx.getKeyValueState[Integer]("personCnt", 0)
+      val personCnt = ctx.getKeyValueState[Integer]("personCnt", classOf[Integer],0)
       // update count by passenger cnt of new event
       personCnt.update(personCnt.value() + event._2)
       // check if count is high enough for early notification
@@ -163,13 +166,7 @@ object EarlyArrivalCount {
   }
 
 
-  class CntByLocTimeUpsert(host: String, port: Int)
-    extends ElasticsearchUpsertSink[(Int, Long, GeoPoint, Int)](
-      host,
-      port,
-      "elasticsearch",
-      "nyc-idx",
-      "popular-locations") {
+  class CntByLocTimeUpsert(host: String, port: Int) extends ElasticsearchUpsertSink[(Int, Long, GeoPoint, Int)](host, port, "elasticsearch", "nyc-idx", "popular-locations") {
 
     override def insertJson(r: (Int, Long, GeoPoint, Int)): Map[String, AnyRef] = {
       Map(
