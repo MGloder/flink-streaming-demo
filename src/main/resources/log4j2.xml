@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Configuration status="warn">
     <Properties>
-        <Property name="basePath">/var/folders/4s/qrkq9xfs7y904dsk4_1dt3nr0000gy/T</Property>
+        <Property name="basePath">/Users/xyan/Learning/flink-streaming-demo/data/tmp</Property>
     </Properties>
 
     <Appenders>
@@ -19,11 +19,9 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="com.howtodoinjava" level="debug" additivity="true">
-            <appender-ref ref="fileLogger" level="debug" />
-        </Logger>
-        <Root level="debug" additivity="false">
-            <appender-ref ref="console" />
+        <Root level="all">
+            <AppenderRef ref="fileLogger" level="debug" />
+            <AppenderRef ref="console" level="error" />
         </Root>
     </Loggers>
 </Configuration>
