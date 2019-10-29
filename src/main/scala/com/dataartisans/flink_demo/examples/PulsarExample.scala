@@ -28,15 +28,9 @@ object PulsarExample {
       .keyBy(taxi => taxi.rideId)
       .process(new ValueStateProcessFunctionExample)
 
-    val customTaxiRideStringSink: StreamingFileSink[TaxiRide] = StreamingFileSink.forRowFormat(
-      new Path("/Users/xyan/Learning/flink-streaming-demo/data/result.gz"),
-      new SimpleStringEncoder[TaxiRide]("UTF-8")).build()
+    val customTaxiRideStringSink: StreamingFileSink[TaxiRide] = StreamingFileSink.forBulkFormat(
+      new Path("/Users/xyan/Learning/flink-streaming-demo/data/"), ParquetAvroWriters).build()
 
-//    valueStateIntermediateResult.addSink(StreamingFileSink.forRowFormat[TaxiRide](
-//
-//    ))
-
-    //    taxiSource.("/Users/xyan/Learning/flink-streaming-demo/data/result.gz", WriteMode.OVERWRITE)
     valueStateIntermediateResult.addSink(customTaxiRideStringSink)
 
     env.execute("Taxi Source with Multiple Managed State Test")
