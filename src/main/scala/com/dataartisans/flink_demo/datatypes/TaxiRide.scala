@@ -96,4 +96,9 @@ object TaxiRide {
  * @param lon The longitude of the point.
  * @param lat The latitude of the point.
  */
-case class GeoPoint(lon: Double, lat: Double)
+case class GeoPoint(lon: Double, lat: Double) {
+  def apply(lon: Double, lat: Double): GeoPoint = {
+    new GeoPoint(lon, lat)
+  }
+  def -(point: GeoPoint): Double = (point.lon - lon)
+}
