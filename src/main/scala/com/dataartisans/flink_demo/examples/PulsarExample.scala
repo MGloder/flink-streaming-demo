@@ -2,11 +2,12 @@ package com.dataartisans.flink_demo.examples
 
 import com.dataartisans.flink_demo.datatypes.{GeoPoint, TaxiRide}
 import com.dataartisans.flink_demo.sources.TaxiRideSource
-import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
+import org.apache.flink.formats.parquet.avro.ParquetAvroWriters
+import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -19,6 +20,8 @@ object PulsarExample {
 
     env.setParallelism(1)
 
+    env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE)
+
     val taxiSource = env
       .addSource(
         new TaxiRideSource("/Users/xyan/Learning/flink-streaming-demo/data/nycTaxiData.gz",
@@ -28,10 +31,15 @@ object PulsarExample {
       .keyBy(taxi => taxi.rideId)
       .process(new ValueStateProcessFunctionExample)
 
-    val customTaxiRideStringSink: StreamingFileSink[TaxiRide] = StreamingFileSink.forBulkFormat(
-      new Path("/Users/xyan/Learning/flink-streaming-demo/data/"), ParquetAvroWriters).build()
+    val customAvroFileSink = StreamingFileSink.forBulkFormat(
+      new Path("/Users/xyan/Learning/flink-streaming-demo/data/"),
+      //      new SimpleStringEncoder[TaxiRide]("UTF-8")
+      ParquetAvroWriters.forReflectRecord(classOf[TaxiRide])
+    ).build()
 
-    valueStateIntermediateResult.addSink(customTaxiRideStringSink)
+    valueStateIntermediateResult.print()
+
+    valueStateIntermediateResult.addSink(customAvroFileSink).name("ExampleParquet")
 
     env.execute("Taxi Source with Multiple Managed State Test")
   }
@@ -48,7 +56,10 @@ case class ValueStateProcessFunctionExample() extends KeyedProcessFunction[Long,
       println("last geo is: " +
         this.lastGeoLocation.value() + " current geo is: " +
         value.location + " marching " + (value.location - this.lastGeoLocation.value()))
+    } else {
+      println("lastGeoLocation is NULL")
     }
+
     this.lastGeoLocation.update(value.location)
   }
 
